@@ -21,7 +21,9 @@ class Messenger(asyncio.Protocol):
 
     def data_received(self, data):
         print(data)
-        self.parse(data)
+        messages = self.parse(data)
+        for message in messages:
+            self.handle_message(message)
 
     def eof_received(self):
         pass
@@ -38,6 +40,11 @@ class Messenger(asyncio.Protocol):
             index = self.buffer.find(b"\n")
             if index != -1:
                 line = self.buffer[:index]
+        return []
 
-    def handler_message(self, message):
-        pass
+    def handle_message(self, message):
+        callback = self.server.messenger_callbacks.get(message.type)
+        if callback:
+            data = callback(message)
+            if isinstance(data, str):
+                self.transport.write(data.encode("utf-8"))

@@ -11,16 +11,21 @@ class Server(object):
         self.broker_class = broker_class
         self.cluster_class = cluster_class
         self.messenger = None
+        self.messenger_callbacks = {}
         self.brokers = []
         self.clusters = []
         self.users = []
+
+    def messenger_handler(self, type):
+        def wrapper(func):
+            self.messenger_callbacks[type] = func
+
+            def real(*args, **kwargs):
+                return func(*args, **kwargs)
+            return real
+        return wrapper
 
     def run(self):
         coro = self.loop.create_server(lambda: self.messenger_class(self), self.messenger_host, self.messenger_port)
         self.messenger = self.loop.run_until_complete(coro)
         self.loop.run_forever()
-
-
-if __name__ == "__main__":
-    server = Server(messenger.Messenger)
-    server.run()
