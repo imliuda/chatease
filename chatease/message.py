@@ -3,6 +3,7 @@ class Message(object):
         self.type = None
         self.complete = False
         self.elements = []
+        self.data = None
 
     def __str__(self):
         pass
@@ -12,4 +13,8 @@ class Message(object):
 
 
 class Element(object):
+    pass
+
+
+class Frame(object):
     pass
