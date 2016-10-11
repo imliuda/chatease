@@ -1,20 +1,22 @@
 import asyncio
-
 import binascii
-
-
-class Message(object):
-    def __init__(self):
-        self.type = None
+from .message import Message
 
 
 class Messenger(asyncio.Protocol):
+    """
+
+    """
+    parse_cmd = 1
+    parse_params = 2
+    parse_body = 3
+
     def __init__(self, server):
         self.transport = None
         self.server = server
         self.messages = asyncio.Queue(maxsize=200)
-        self.buffer = bytes()
-        self.parse_state = "ready"
+        self.buffer = bytearray()
+        self.parse_state = self.parse_cmd
 
     def connection_made(self, transport):
         self.transport = transport
@@ -39,13 +41,14 @@ class Messenger(asyncio.Protocol):
 
     def parse(self, data):
         self.buffer += data
-        if self.parse_state == "ready":
+        if self.parse_state == self.parse_cmd:
             if self.buffer.find("\r\n") == -1:
                 return
-            if not self.buffer.startswith(b"MSG"):
-                index = self.buffer.find(b"MSG")
+            if not self.buffer.startswith(b"CMD"):
+                index = self.buffer.find(b"CMD")
                 if index == -1:
-                    self.buffer = bytes()
+                    self.buffer = bytearray()
+                    return
                 else:
                     self.buffer = self.buffer[index:]
 

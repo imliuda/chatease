@@ -15,6 +15,7 @@ class Server(object):
         self.brokers = []
         self.clusters = []
         self.users = []
+        self.settings = {}
 
     def messenger_handler(self, type):
         def wrapper(func):
