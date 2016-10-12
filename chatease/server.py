@@ -1,32 +1,45 @@
 import asyncio
-from . import messenger
 
 
 class Server(object):
-    def __init__(self, messenger_class, messenger_host="0.0.0.0", messenger_port=7521,  broker_class=None, cluster_class=None):
+    def __init__(self, stream_cls, host="0.0.0.0", port=7521, cluster=None, debug=False):
         self.loop = asyncio.get_event_loop()
-        self.messenger_class = messenger_class
-        self.messenger_host = messenger_host
-        self.messenger_port = messenger_port
-        self.broker_class = broker_class
-        self.cluster_class = cluster_class
-        self.messenger = None
-        self.messenger_callbacks = {}
+        self.loop.set_debug(debug)
+        self.stream_cls = stream_cls
+        self.host = host
+        self.port = port
+        self.cluster = cluster
         self.brokers = []
-        self.clusters = []
-        self.users = []
         self.settings = {}
+        self.clients = []
+        self.messages = asyncio.Queue()
+        self.frames = asyncio.Queue()
 
-    def messenger_handler(self, type):
-        def wrapper(func):
-            self.messenger_callbacks[type] = func
+    @asyncio.coroutine
+    def handle_message_task(self):
+        while True:
+            messenge = yield from self.messages.get()
+            self.handle_message(messenge)
 
-            def real(*args, **kwargs):
-                return func(*args, **kwargs)
-            return real
-        return wrapper
+    @asyncio.coroutine
+    def handle_frames_task(self):
+        while True:
+            frame = yield from self.frames.get()
+            self.handle_frames(frame)
+
+    def handle_message(self, message):
+        pass
+
+    def handle_frames(self, frame):
+        print(frame.__dict__)
 
     def run(self):
-        coro = self.loop.create_server(lambda: self.messenger_class(self), self.messenger_host, self.messenger_port)
-        self.messenger = self.loop.run_until_complete(coro)
+        asyncio.ensure_future(self.handle_message_task())
+        asyncio.ensure_future(self.handle_frames_task())
+        coro = self.loop.create_server(
+            protocol_factory=lambda: self.stream_cls(self),
+            host=self.host,
+            port=self.port,
+        )
+        asyncio.ensure_future(coro)
         self.loop.run_forever()
