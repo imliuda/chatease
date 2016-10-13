@@ -11,35 +11,42 @@ class Server(object):
         self.cluster = cluster
         self.brokers = []
         self.settings = {}
-        self.clients = []
+        # clients is a dict, it's structure as follow:
+        # {
+        #     "user_id": {
+        #         "stream": stream.Stream
+        #     }
+        # }
+        self.clients = {}
         self.messages = asyncio.Queue()
         self.frames = asyncio.Queue()
 
     @asyncio.coroutine
     def handle_message_task(self):
         while True:
-            messenge = yield from self.messages.get()
-            self.handle_message(messenge)
+            message = yield from self.messages.get()
+            self.loop.call_soon(self.handle_message, message)
 
     @asyncio.coroutine
-    def handle_frames_task(self):
+    def handle_frame_task(self):
         while True:
             frame = yield from self.frames.get()
-            self.handle_frames(frame)
+            self.loop.call_soon(self.handle_frame, frame)
 
     def handle_message(self, message):
         pass
 
-    def handle_frames(self, frame):
-        print(frame.__dict__)
+    def handle_frame(self, frame):
+        pass
 
     def run(self):
-        asyncio.ensure_future(self.handle_message_task())
-        asyncio.ensure_future(self.handle_frames_task())
+        # use create_task for version >= 3.4.2
+        self.loop.create_task(self.handle_message_task())
+        self.loop.create_task(self.handle_frame_task())
         coro = self.loop.create_server(
             protocol_factory=lambda: self.stream_cls(self),
             host=self.host,
             port=self.port,
         )
-        asyncio.ensure_future(coro)
+        self.loop.create_task(coro)
         self.loop.run_forever()

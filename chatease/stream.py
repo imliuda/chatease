@@ -94,7 +94,7 @@ class Stream(asyncio.Protocol):
         if self.parse_state == self.parse_data:
             if len(self.buffer) >= self.frame.size:
                 self.frame.data = self.buffer[:self.frame.size]
-                asyncio.ensure_future(self.server.frames.put(self.frame))
+                self.server.loop.create_task(self.server.frames.put(self.frame))
                 self.frame = Frame()
                 self.parse_state = self.parse_cmd
                 self.parse(bytearray())
