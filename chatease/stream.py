@@ -3,7 +3,7 @@ import binascii
 from .message import Message
 
 
-class Frame(object):
+class StreamFrame(object):
     """
     Frame is a transfer entity in a socket stream.
     """
@@ -17,39 +17,16 @@ class Frame(object):
         self.data = None
 
 
-class Stream(asyncio.Protocol):
-    """
-    Message stream handler
-    """
+class StreamParser(object):
     parse_cmd = 1
     parse_params = 2
     parse_data = 3
 
-    def __init__(self, server):
-        self.transport = None
-        self.server = server
+    def __init__(self):
         self.buffer = bytearray()
-        self.frame = Frame()
-        self.user = ""
         self.parse_state = self.parse_cmd
-
-    def connection_made(self, transport):
-        self.transport = transport
-
-    def connection_lost(self, exc):
-        pass
-
-    def data_received(self, data):
-        self.parse(data)
-
-    def eof_received(self):
-        pass
-
-    def pause_writing(self):
-        pass
-
-    def resume_writing(self):
-        pass
+        self.frame = StreamFrame()
+        self.on_frame = None
 
     def parse(self, data):
         self.buffer += data
@@ -94,7 +71,37 @@ class Stream(asyncio.Protocol):
         if self.parse_state == self.parse_data:
             if len(self.buffer) >= self.frame.size:
                 self.frame.data = self.buffer[:self.frame.size]
-                self.server.loop.create_task(self.server.frames.put(self.frame))
-                self.frame = Frame()
+                if self.on_frame:
+                    self.on_frame(self.frame)
+                self.frame = StreamFrame()
                 self.parse_state = self.parse_cmd
                 self.parse(bytearray())
+
+
+class Stream(asyncio.Protocol):
+    def __init__(self, server):
+        self.transport = None
+        self.server = server
+        self.parser = StreamParser()
+        self.parser.on_frame = self.on_frame
+
+    def connection_made(self, transport):
+        self.transport = transport
+
+    def connection_lost(self, exc):
+        pass
+
+    def data_received(self, data):
+        self.parser.parse(data)
+
+    def eof_received(self):
+        pass
+
+    def pause_writing(self):
+        pass
+
+    def resume_writing(self):
+        pass
+
+    def on_frame(self, frame):
+        self.server.loop.create_task(self.server.frames.put(frame))

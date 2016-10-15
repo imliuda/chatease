@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" type="text/css" href="style/style.css">
+    <script type="text/javascript" src="javascript/jquery-3.1.0.min.js"></script>
+    <script type="text/javascript" src="javascript/websocket.js"></script>
+    <script type="text/javascript">
+        $(document).ready(function () {
+            var chat = new ChatClient({
+                url: "ws://127.0.0.1:7523/chat",
+                protocol: "chat"
+            }).connect();
+
+            function send_message() {
+                message = $("#input-area").val();
+                $("#msg-box ul").append('<li class="me">' +
+                                            '<div class="msg">' + message + '</div>' +
+                                            '<div class="avatar"><img src=""></div>' +
+                                        '</li>');
+                str = "";
+                for (i=0; i<1000000; i++) {
+                    str += "zzzzzzzzzz";
+                }
+                chat.sendBinary(str);
+            }
+            $("#input-area").keypress(function (event) {
+                if (event.keyCode == 13) {
+                    send_message();
+                    return false;
+                }
+            });
+        });
+    </script>
+    <title>Chat</title>
+</head>
+<body>
+<div id="page">
+    <div id="chat">
+        <div id="left">
+            <div id="profile">
+
+            </div>
+            <div id="search">
+                <input type="text">
+            </div>
+            <div id="contacts">
+                <ul>
+                    <li class="contact">
+                        <div class="avatar">
+                            <img src="">
+                        </div>
+                        <div class="info">
+                            <div class="name">少年丶不少</div>
+                            <div class="mood">tody is a nice day ...</div>
+                        </div>
+                    </li>
+                    <li class="contact">
+                        <div class="avatar">
+                            <img src="">
+                        </div>
+                        <div class="info">
+                            <div class="name">下落特烦恼</div>
+                            <div class="mood">珍惜现在，不要在将来留下遗憾</div>
+                        </div>
+                    </li>                    <li class="contact">
+                        <div class="avatar">
+                            <img src="">
+                        </div>
+                        <div class="info">
+                            <div class="name">煎饼侠</div>
+                            <div class="mood">谈煎饼都能成为侠客，在下实在是佩服</div>
+                        </div>
+                    </li>                    <li class="contact">
+                        <div class="avatar">
+                            <img src="">
+                        </div>
+                        <div class="info">
+                            <div class="name">变形金刚</div>
+                            <div class="mood">你们几个外星人就像灭了我们人类，想多了吧</div>
+                        </div>
+                    </li>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        <div id="right">
+            <div id="title-bar">
+
+            </div>
+            <div id="msg-box">
+                <ul>
+                   <li class="other">
+                       <div class="avatar">
+                           <img src="">
+                       </div>
+                       <div class="msg">撒发撒速度发俄方</div>
+                   </li>
+                   <li class="other">
+                       <div class="avatar">
+                           <img src="">
+                       </div>
+                       <div class="msg">撒发撒速度发俄方</div>
+                   </li>
+                   <li class="me">
+                       <div class="msg">撒发撒速度发俄方撒发撒速度发俄方撒发撒速度发俄方撒发撒速度发俄方撒发撒速度发俄方
+                           撒发撒速度发俄方撒发撒速度发俄方撒发撒速度发俄方撒发撒速度发俄方撒发撒速度发俄方
+                           撒发撒速度发俄方撒发撒速度发俄方撒发撒速度发俄方撒发撒速度发俄方撒发撒速度发俄方撒发撒速度发俄方撒发撒速度发俄方撒发撒速度发俄方
+                           撒发撒速度发俄方撒发撒速度发俄方撒发撒速度发俄方撒发撒速度发俄方</div>
+                       <div class="avatar">
+                           <img src="">
+                       </div>
+                   </li>
+                </ul>
+            </div>
+            <div id="tool-bar">
+
+            </div>
+            <div id="input-box">
+                <textarea id="input-area" name="input-area" title="input-area" class="input-area"></textarea>
+            </div>
+            <div id="send-bar">
+                <button class="send">发送</button>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

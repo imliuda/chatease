@@ -1,12 +1,16 @@
-from chatease import Server, Stream
+from chatease import Server, Stream, WebSocketStream, Cluster
 
 
 class ChatServer(Server):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
     def handle_frame(self, frame):
+        print(frame.__dict__)
         to = frame.params.get("to")
         user = self.clients.get(to)
+        # if destination is also in this server
         if user:
-            # if destination is also in this server
             stream = user.get("stream")
             stream.write(bytes(frame))
         # try to get user information from cluster server
@@ -16,5 +20,6 @@ class ChatServer(Server):
                 pass
 
 if __name__ == "__main__":
-    server = Server(Stream, host="0.0.0.0", port=7521, cluster=None, debug=True)
+    server = ChatServer(host="0.0.0.0", stream_cls=Stream, port=7521, ws_stream_cls=WebSocketStream,
+                        ws_port=7523, cluster_cls=Cluster, debug=True)
     server.run()
