@@ -242,7 +242,12 @@ class WebSocketStream(asyncio.Protocol):
             resp += b"Sec-WebSocket-Protocol: " + self.protocol.encode("utf-8") + b"\r\n"
         resp += b"\r\n"
         self.transport.write(resp)
-        # self.write(b"woiajpoifwapiofjwpaofjwaf" * 10000)
+        self.write(b"CMD login 2a4fd4a4-9373-11e6-b1b1-b46d8361714b 5 1/2\r\n"
+                   b"from: hello\r\nto: world\r\n"
+                   b"type: Application/json\r\n\r\nabcde")
+        self.write(b"fwfwefwCMD logout 2a4fd4a4-9373-11e6-b1b1-b46d8361714b 5 2/2\r\n"
+                   b"from: hello\r\nto: world\r\n"
+                   b"type: Application/json\r\n\r\nqqqqq")
         return True
 
     def mask_payload(self, data):
@@ -258,7 +263,6 @@ class WebSocketStream(asyncio.Protocol):
         todo confirm what message should send to parser
         """
         self.mask_payload(frame.payload)
-        print(len(frame.payload))
         if frame.fin == 0:
             if frame.opcode != 0:
                 self.ws_message = WSMessage()

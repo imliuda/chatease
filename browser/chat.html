@@ -10,7 +10,25 @@
             var chat = new ChatClient({
                 url: "ws://127.0.0.1:7523/chat",
                 protocol: "chat"
-            }).connect();
+            });
+            chat.onChatMessage = function (message) {
+                $("#msg-box ul").append('<li class="other">' +
+                                            '<div class="avatar"><img src=""></div>' +
+                                            '<div class="msg">' + chat.arrayToString(message.data) + '</div>' +
+                                        '</li>');
+            };
+            chat.onConnected = function () {
+                frame = new WSFrame();
+                frame.cmd = "login";
+                frame.fr = "hanlei";
+                frame.params.username = "hanlei";
+                frame.params.password = "12345678";
+                frame.nseqs = 1;
+                frame.seq = 1;
+                frame.uuid = "2a4fd4a4-9373-11e6-b1b1-b46d8361714b";
+                this.send(frame.toArrayBuffer());
+            };
+            chat.connect();
 
             function send_message() {
                 message = $("#input-area").val();
@@ -42,13 +60,13 @@
 
             </div>
             <div id="search">
-                <input type="text">
+                <input type="text" placeholder="搜索好友与群组...">
             </div>
             <div id="contacts">
                 <ul>
                     <li class="contact">
                         <div class="avatar">
-                            <img src="">
+                            <img src="images/contact-avatar.jpg">
                         </div>
                         <div class="info">
                             <div class="name">少年丶不少</div>
@@ -57,7 +75,7 @@
                     </li>
                     <li class="contact">
                         <div class="avatar">
-                            <img src="">
+                            <img src="images/contact-avatar.jpg">
                         </div>
                         <div class="info">
                             <div class="name">下落特烦恼</div>
@@ -65,7 +83,7 @@
                         </div>
                     </li>                    <li class="contact">
                         <div class="avatar">
-                            <img src="">
+                            <img src="images/contact-avatar.jpg">
                         </div>
                         <div class="info">
                             <div class="name">煎饼侠</div>
@@ -73,7 +91,7 @@
                         </div>
                     </li>                    <li class="contact">
                         <div class="avatar">
-                            <img src="">
+                            <img src="images/contact-avatar.jpg">
                         </div>
                         <div class="info">
                             <div class="name">变形金刚</div>

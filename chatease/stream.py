@@ -105,3 +105,6 @@ class Stream(asyncio.Protocol):
 
     def on_frame(self, frame):
         self.server.loop.create_task(self.server.frames.put(frame))
+
+    def write(self, data):
+        self.transport.write(data)
