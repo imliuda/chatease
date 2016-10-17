@@ -1,28 +1,61 @@
-function MessageBase() {
-    this.fr = "";
-    this.to = "";
-    this.data = new Uint8Array(0);
-    this.size = 0;
-    this.complete = false
+function StreamMessage(cmd, params, data) {
+    this.cmd = cmd != undefined ? cmd : "";
+    this.params = params != undefined ? params : {};
+    this.data = data != undefined ? data : new Uint8Array(0);
 }
 
-function Message() {
-}
-Message.prototype = new MessageBase();
-
-function WSFrame() {
+function StreamFrame() {
     this.cmd = "";
-    this.uuid = "";
-    this.size = 0;
-    this.seq = 0;
-    this.nseqs = 0;
     this.params = {};
     this.data = new Uint8Array(0);
+}
+
+function TextMessage(to, text) {
+    this.cmd = "message";
+    this.params.class = "text";
+    this.params.to = to;
+    this.data = new Uint8Array(text.length);
+    for (var i=0; i<text.length; i++) {
+        this.data[i] = text.charCodeAt(i);
+    }
 
     this.toArrayBuffer = function () {
-        this.size = this.data.length;
-        var str = "CMD " + this.cmd + " " + this.uuid + " " + this.size + " " + this.seq + "/" + this.nseqs + "\r\n";
+        var str = "CMD " + this.cmd + "\r\n";
+        this.params.size = this.data.length;
+        for (var p in this.params) {
+            str += p + ": " + this.params[p] + "\r\n";
+        }
+        str += "\r\n";
+        hb = new Uint8Array(str.length);
+        for (var i=0; i<hb.length; i++) {
+            hb[i] = str.charCodeAt(i);
+        }
+        buffer = new Uint8Array(str.length + this.data.length);
+        buffer.set(hb);
+        buffer.set(this.data, hb.length);
+        return buffer;
+    }
+}
+TextMessage.prototype = new StreamMessage();
 
+function LoginMessage(username, password) {
+    this.cmd = "login";
+    this.params = {};
+    this.params.username = username;
+    this.params.password = password;
+
+    this.toArrayBuffer = function () {
+        var str = "CMD " + this.cmd + "\r\n";
+        this.params.size = 0;
+        for (var p in this.params) {
+            str += p + ": " + this.params[p] + "\r\n";
+        }
+        str += "\r\n";
+        hb = new Uint8Array(str.length);
+        for (var i=0; i<hb.length; i++) {
+            hb[i] = str.charCodeAt(i);
+        }
+        return hb;
     }
 }
 
@@ -34,7 +67,7 @@ function ChatClient(params) {
     this.buffer = new Uint8Array(0);
 
     this.messages = {};
-    this.frame = new WSFrame();
+    this.frame = new StreamFrame();
     this.blobs = [];
     this.parse_state = "cmd";
 
@@ -98,13 +131,9 @@ function ChatClient(params) {
         if (self.parse_state == "cmd") {
             var line = self.getLine();
             if (line) {
-                matches = line.match(/.*CMD +(\S+) +(\S+) +(\d+) +(\d+)\/(\d+)/);
+                matches = line.match(/.*CMD +(\S+).*/);
                 if (matches) {
                     self.frame.cmd = matches[1];
-                    self.frame.uuid = matches[2];
-                    self.frame.size = parseInt(matches[3]);
-                    self.frame.seq = parseInt(matches[4]);
-                    self.frame.nseqs = parseInt(matches[5]);
                     self.parse_state = "headers";
                     //console.log(self.frame);
                 }
@@ -122,41 +151,53 @@ function ChatClient(params) {
             }
         }
         if (self.parse_state == "data") {
-            if (self.buffer.length >= self.frame.size) {
-                self.frame.data = self.buffer.slice(0, self.frame.size);
-                self.buffer = self.buffer.slice(self.frame.size);
+            if (self.buffer.length >= self.frame.params.size) {
+                self.frame.data = self.buffer.slice(0, self.frame.params.size);
+                self.buffer = self.buffer.slice(self.frame.params.size);
                 self.onframe(self.frame);
                 self.parse_state = "cmd";
-                self.frame = new WSFrame();
+                self.frame = new StreamFrame();
                 self.parse(new Uint8Array(0));
             }
         }
     };
 
+    self.onMessageFrame = function (frame) {
+
+    };
+
     self.onframe = function (frame) {
         //console.log(frame);
-        uuid = frame.uuid;
-        nseqs = frame.nseqs;
-        if (self.messages.hasOwnProperty(uuid)) {
-            self.messages[uuid].push(frame);
+        var message;
+        if (frame.params.hasOwnProperty("chunk")) {
+            var uuid = frame.params.uuid;
+            if (self.messages.hasOwnProperty(uuid)) {
+                self.messages[uuid].push(frame)
+            } else {
+                self.messages[uuid] = [frame];
+            }
+            var nchunks = parseInt(frame.params.chunk.split("/")[1].trim());
+            if (self.messages[uuid].length == nchunks) {
+
+                self.messages[uuid].sort(function (a, b) {
+                    return parseInt(a.params.chunk.split("/")[0]) - parseInt(b.params.chunk.split("/")[0]);
+                });
+                message = new StreamMessage();
+                self.messages[uuid].forEach(function (frame) {
+                    buffer = new Uint8Array(message.data.length + frame.data.length);
+                    buffer.set(message.data);
+                    buffer.set(frame.data, message.data.length);
+                    message.data = buffer;
+                });
+                message.cmd = self.messages[uuid][0].cmd;
+                message.params = self.messages[uuid][0].params;
+                self.onChatMessage(message);
+            }
         } else {
-            self.messages[uuid] = [frame];
-        }
-        if (self.messages[uuid].length == nseqs) {
-            message = new Message();
-            message.fr = frame.params.from;
-            message.to = frame.params.to;
-            message.complete = true;
-            self.messages[uuid].sort(function (a, b) {
-                return a.seq - b.seq;
-            });
-            self.messages[uuid].forEach(function (frame) {
-                buffer = new Uint8Array(message.data.length + frame.data.length);
-                buffer.set(message.data);
-                buffer.set(frame.data, message.data.length);
-                message.data = buffer;
-                message.size = buffer.length;
-            });
+            message = new StreamMessage();
+            message.cmd = frame.cmd;
+            message.params = frame.params;
+            message.data = frame.data;
             self.onChatMessage(message);
         }
     };

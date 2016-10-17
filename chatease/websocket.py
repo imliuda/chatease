@@ -73,7 +73,7 @@ class WebSocketStream(asyncio.Protocol):
         self.ws_message = None
         self.ws_frame = WSFrame()
         self.parse_state = self.parse_http_request
-        self.stream_parser = StreamParser()
+        self.stream_parser = StreamParser(self)
         self.stream_parser.on_frame = self.on_frame
 
         self.path = ""
@@ -242,12 +242,20 @@ class WebSocketStream(asyncio.Protocol):
             resp += b"Sec-WebSocket-Protocol: " + self.protocol.encode("utf-8") + b"\r\n"
         resp += b"\r\n"
         self.transport.write(resp)
-        self.write(b"CMD login 2a4fd4a4-9373-11e6-b1b1-b46d8361714b 5 1/2\r\n"
-                   b"from: hello\r\nto: world\r\n"
-                   b"type: Application/json\r\n\r\nabcde")
-        self.write(b"fwfwefwCMD logout 2a4fd4a4-9373-11e6-b1b1-b46d8361714b 5 2/2\r\n"
-                   b"from: hello\r\nto: world\r\n"
-                   b"type: Application/json\r\n\r\nqqqqq")
+        self.write(b"CMD message 5 1/2\r\n"
+                   b"class: text\r\n"
+                   b"uuid: 2a4fd4a4-9373-11e6-b1b1-b46d8361714b\r\n"
+                   b"size: 5\r\n"
+                   b"chunk: 1/2\r\n"
+                   b"from: hello\r\n"
+                   b"type: text/plain\r\n\r\nabcde")
+        self.write(b"fwfwefwCMD message\r\n"
+                   b"class: text\r\n"
+                   b"uuid: 2a4fd4a4-9373-11e6-b1b1-b46d8361714b\r\n"
+                   b"size: 5\r\n"
+                   b"chunk: 2/2\r\n"
+                   b"from: hello\r\n"
+                   b"type: text/plain\r\n\r\nqqqqq")
         return True
 
     def mask_payload(self, data):
@@ -263,6 +271,7 @@ class WebSocketStream(asyncio.Protocol):
         todo confirm what message should send to parser
         """
         self.mask_payload(frame.payload)
+        # print(frame.payload)
         if frame.fin == 0:
             if frame.opcode != 0:
                 self.ws_message = WSMessage()

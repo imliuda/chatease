@@ -12,11 +12,17 @@ class MessageBase(object):
         self.fr = fr
         self.to = to
         self.data = data
-        self.size = 0
-        self.complete = False
+        self.mclass = ""
+
+    def __len__(self):
+        return len(self.data)
+
+    @property
+    def size(self):
+        return len(self.data)
 
 
-class Message(MessageBase):
+class WrapperMessage(MessageBase):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
@@ -30,21 +36,26 @@ class Message(MessageBase):
         json.dumps(str(self)).encode("utf-8")
 
 
-class Expression(MessageBase):
+class TextMessage(MessageBase):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
 
-class Image(MessageBase):
+class ExpressionMessage(MessageBase):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
 
-class Voice(MessageBase):
+class ImageMessage(MessageBase):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
 
-class Video(MessageBase):
+class VoiceMessage(MessageBase):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+
+class VideoMessage(MessageBase):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

@@ -1,4 +1,5 @@
 import asyncio
+from .stream import StreamMessage
 
 class Server(object):
     def __init__(self, host="0.0.0.0", stream_cls=None, port=7521, ws_stream_cls = None,
@@ -17,31 +18,82 @@ class Server(object):
         self.settings = {}
         # clients is a dict, it's structure as follow:
         # {
-        #     "user_id": {
+        #     "uid": {
         #         "stream": stream.Stream
         #     }
         # }
         self.clients = {}
+        self.msgs = {}
+        self.callbacks = {
+            "frame": {},
+            "message": {}
+        }
         self.messages = asyncio.Queue()
         self.frames = asyncio.Queue()
 
+    def message(self, cmd):
+        def wrapper(func):
+            self.callbacks["message"][cmd] = func
+            def real(*args, **kwargs):
+                func(*args, **kwargs)
+            return real
+        return wrapper
+
+    def frame(self, cmd):
+        def wrapper(func):
+            self.callbacks["frame"][cmd] = func
+            def real(*args, **kwargs):
+                func(*args, **kwargs)
+            return real
+        return wrapper
+
     @asyncio.coroutine
     def handle_message_task(self):
+        message_callbacks = self.callbacks.get("message")
         while True:
             message = yield from self.messages.get()
-            self.loop.call_soon(self.handle_message, message)
+            callback = message_callbacks.get(message.cmd)
+            if callback:
+                self.loop.call_soon(callback, message)
 
     @asyncio.coroutine
     def handle_frame_task(self):
+        frame_callbacks = self.callbacks.get("frame")
         while True:
             frame = yield from self.frames.get()
+            callback = frame_callbacks.get(frame.cmd)
+            if callback:
+                self.loop.call_soon(callback, frame)
             self.loop.call_soon(self.handle_frame, frame)
 
     def handle_message(self, message):
         pass
 
     def handle_frame(self, frame):
-        pass
+        if "chunk" in frame.params:
+            uuid = frame.params.get("uuid")
+            nchunks = int(frame.params.get("chunk").split("/")[1].strip())
+            if uuid in self.msgs:
+                self.msgs[uuid].append(frame)
+            else:
+                self.msgs[uuid] = [frame]
+            if len(self.msgs[uuid]) == nchunks:
+                sorted(self.msgs[uuid], key=lambda x: x.params.get("chunk").split("/")[0].strip())
+                message = StreamMessage()
+                for frame in self.msgs[uuid]:
+                    message.data += frame.data
+                message.cmd = self.msgs[uuid][0].cmd
+                message.params = self.msgs[uuid][0].params
+                message.stream = frame.stream
+                self.loop.create_task(self.messages.put(message))
+                del self.msgs[uuid]
+        else:
+            message = StreamMessage()
+            message.cmd = frame.cmd
+            message.params = frame.params
+            message.data = frame.data
+            message.stream = frame.stream
+            self.loop.create_task(self.messages.put(message))
 
     def run(self):
         # use create_task for version >= 3.4.2

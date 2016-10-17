@@ -18,15 +18,9 @@
                                         '</li>');
             };
             chat.onConnected = function () {
-                frame = new WSFrame();
-                frame.cmd = "login";
-                frame.fr = "hanlei";
-                frame.params.username = "hanlei";
-                frame.params.password = "12345678";
-                frame.nseqs = 1;
-                frame.seq = 1;
-                frame.uuid = "2a4fd4a4-9373-11e6-b1b1-b46d8361714b";
-                this.send(frame.toArrayBuffer());
+                message = new LoginMessage("ZhangSan", "123456");
+                //message = new LoginMessage("LiSi", "654321");
+                this.send(message.toArrayBuffer());
             };
             chat.connect();
 
@@ -36,11 +30,9 @@
                                             '<div class="msg">' + message + '</div>' +
                                             '<div class="avatar"><img src=""></div>' +
                                         '</li>');
-                str = "";
-                for (i=0; i<1000000; i++) {
-                    str += "zzzzzzzzzz";
-                }
-                chat.sendBinary(str);
+                var textMessage = new TextMessage("LiSi", message);
+                //var textMessage = new TextMessage("ZhangSan", message);
+                chat.send(textMessage.toArrayBuffer());
             }
             $("#input-area").keypress(function (event) {
                 if (event.keyCode == 13) {

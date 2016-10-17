@@ -1,6 +1,5 @@
 import asyncio
 import binascii
-from .message import Message
 
 
 class StreamFrame(object):
@@ -9,12 +8,19 @@ class StreamFrame(object):
     """
     def __init__(self):
         self.cmd = ""
-        self.uuid = ""
-        self.size = 0
-        self.seq = 0
-        self.nseqs = 0
         self.params = {}
         self.data = None
+
+    def __bytes__(self):
+        data = "CMD " + self.cmd + "\r\n"
+        for p in self.params:
+            data += p + ": " + self.params[p] + "\r\n"
+        data += "\r\n"
+        return data.encode("utf-8") + self.data
+
+
+class StreamMessage(StreamFrame):
+    pass
 
 
 class StreamParser(object):
@@ -22,11 +28,12 @@ class StreamParser(object):
     parse_params = 2
     parse_data = 3
 
-    def __init__(self):
+    def __init__(self, stream):
         self.buffer = bytearray()
         self.parse_state = self.parse_cmd
         self.frame = StreamFrame()
         self.on_frame = None
+        self.stream = stream
 
     def parse(self, data):
         self.buffer += data
@@ -42,15 +49,9 @@ class StreamParser(object):
                 line = self.buffer[start_index:end_index]
                 self.buffer = self.buffer[end_index + 2:]
                 cmds = line.split(b" ")
-                if len(cmds) != 5:
+                if len(cmds) != 2:
                     return
-                # the format of cmd line is as follow:
-                # CMD login bf997e18-8f07-11e6-b1b1-b46d8361714b 4885 1/5
-                self.frame.cmd = cmds[1]
-                self.frame.uuid = cmds[2]
-                self.frame.size = int(cmds[3])
-                self.frame.seq = int(cmds[4].split(b"/")[0])
-                self.frame.nseqs = int(cmds[4].split(b"/")[1])
+                self.frame.cmd = cmds[1].decode("ascii")
                 self.parse_state = self.parse_params
 
         if self.parse_state == self.parse_params:
@@ -69,8 +70,9 @@ class StreamParser(object):
                 self.parse_state = self.parse_data
 
         if self.parse_state == self.parse_data:
-            if len(self.buffer) >= self.frame.size:
-                self.frame.data = self.buffer[:self.frame.size]
+            if len(self.buffer) >= int(self.frame.params["size"]):
+                self.frame.data = self.buffer[:int(self.frame.params["size"])]
+                self.frame.stream = self.stream
                 if self.on_frame:
                     self.on_frame(self.frame)
                 self.frame = StreamFrame()
@@ -82,7 +84,7 @@ class Stream(asyncio.Protocol):
     def __init__(self, server):
         self.transport = None
         self.server = server
-        self.parser = StreamParser()
+        self.parser = StreamParser(self)
         self.parser.on_frame = self.on_frame
 
     def connection_made(self, transport):
@@ -104,6 +106,7 @@ class Stream(asyncio.Protocol):
         pass
 
     def on_frame(self, frame):
+        frame.stream = self
         self.server.loop.create_task(self.server.frames.put(frame))
 
     def write(self, data):
